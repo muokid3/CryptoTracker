@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dm.cryptotracker.core.domain.util.onError
 import com.dm.cryptotracker.core.domain.util.onSuccess
 import com.dm.cryptotracker.crypto.domain.CoinDataSource
+import com.dm.cryptotracker.crypto.presentation.coin_details.DataPoint
 import com.dm.cryptotracker.crypto.presentation.models.CoinUi
 import com.dm.cryptotracker.crypto.presentation.models.toCOinUi
 import kotlinx.coroutines.channels.Channel
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 class CoinListViewModel(
     private val coinDataSource: CoinDataSource
@@ -40,23 +42,38 @@ class CoinListViewModel(
     }
 
     private fun selectCoin(coinUi: CoinUi) {
-        _state.update {
-            it.copy(selectedCoin = coinUi)
-        }
+        _state.update { it.copy(selectedCoin = coinUi) }
 
         viewModelScope.launch {
-            coinDataSource.getCoinHistory(
-                coinId = coinUi.id,
-                start = ZonedDateTime.now().minusDays(5),
-                end = ZonedDateTime.now()
-            )
+            coinDataSource
+                .getCoinHistory(
+                    coinId = coinUi.id,
+                    start = ZonedDateTime.now().minusDays(5),
+                    end = ZonedDateTime.now()
+                )
                 .onSuccess { history ->
+                    val dataPoints = history
+                        .sortedBy { it.dateTime }
+                        .map {
+                            DataPoint(
+                                x = it.dateTime.hour.toFloat(),
+                                y = it.priceUsd.toFloat(),
+                                xLabel = DateTimeFormatter
+                                    .ofPattern("ha\nM/d")
+                                    .format(it.dateTime)
+                            )
+                        }
 
-                    println(history)
-
+                    _state.update {
+                        it.copy(
+                            selectedCoin = it.selectedCoin?.copy(
+                                coinPriceHistory = dataPoints
+                            )
+                        )
+                    }
                 }
-                .onError { networkError ->
-                    _events.send(CoinListEvent.Error(networkError))
+                .onError { error ->
+                    _events.send(CoinListEvent.Error(error))
                 }
         }
     }
