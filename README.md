@@ -6,7 +6,7 @@
 Concepts used:
 
 1.Clean Architecture<br> 
-2. MVVM UI architecture<br> 
+2. MVVM presentational architecture<br> 
 3. Dependency Injection with Koin<br> 
 4. Ktor client for network calls<br> 
 5. Room DB<br> 
